@@ -12,11 +12,12 @@ $total_hoso = mysqli_fetch_assoc(mysqli_query($conn, "SELECT COUNT(*) as total F
 $total_thisinh = mysqli_fetch_assoc(mysqli_query($conn, "SELECT COUNT(*) as total FROM thisinh"))['total'];
 $total_nganh = mysqli_fetch_assoc(mysqli_query($conn, "SELECT COUNT(*) as total FROM nganhhoc"))['total'];
 
-// Thống kê trạng thái (Đảm bảo đếm đúng không phân biệt chữ hoa thường)
-$cho_duyet = mysqli_fetch_assoc(mysqli_query($conn, "SELECT COUNT(*) as total FROM hosoxettuyen WHERE LOWER(trangthai) LIKE 'chờ%'"))['total'] ?? 0;
-$da_duyet = mysqli_fetch_assoc(mysqli_query($conn, "SELECT COUNT(*) as total FROM hosoxettuyen WHERE LOWER(trangthai) LIKE 'đã%'"))['total'] ?? 0;
-$tu_choi = mysqli_fetch_assoc(mysqli_query($conn, "SELECT COUNT(*) as total FROM hosoxettuyen WHERE LOWER(trangthai) LIKE 'từ%' OR LOWER(trangthai) LIKE 'từ chối%'"))['total'] ?? 0;
 
+// Thống kê trạng thái (Đảm bảo đếm đúng không phân biệt chữ hoa thường)
+// XÓA 3 dòng cũ dùng LOWER() LIKE, thay bằng:
+$cho_duyet = mysqli_fetch_assoc(mysqli_query($conn, "SELECT COUNT(*) as total FROM hosoxettuyen WHERE trangthai = 'Cho duyet'"))['total'] ?? 0;
+$da_duyet  = mysqli_fetch_assoc(mysqli_query($conn, "SELECT COUNT(*) as total FROM hosoxettuyen WHERE trangthai = 'Da duyet'"))['total'] ?? 0;
+$tu_choi   = mysqli_fetch_assoc(mysqli_query($conn, "SELECT COUNT(*) as total FROM hosoxettuyen WHERE trangthai = 'Tu choi'"))['total'] ?? 0;
 // Lấy hoạt động gần đây
 $recent_hoso = mysqli_query($conn, "SELECT h.*, t.hoten, n.tennganh 
                                      FROM hosoxettuyen h 
@@ -134,40 +135,48 @@ $recent_users = mysqli_query($conn, "SELECT ho_ten FROM users WHERE role='user' 
 
     <script>
         const ctx = document.getElementById('statusChart').getContext('2d');
-        const dataStatus = [<?php echo (int)$cho_duyet; ?>, <?php echo (int)$da_duyet; ?>, <?php echo (int)$tu_choi; ?>];
-        const total = dataStatus.reduce((a, b) => a + b, 0);
+const dataStatus = [<?php echo (int)$cho_duyet; ?>, <?php echo (int)$da_duyet; ?>, <?php echo (int)$tu_choi; ?>];
+const total = dataStatus.reduce((a, b) => a + b, 0);
 
-        if (total === 0) {
-            ctx.font = "16px Arial";
-            ctx.fillStyle = "#94a3b8";
-            ctx.textAlign = "center";
-            ctx.fillText("Chưa có dữ liệu thống kê", 150, 150);
-        } else {
-            new Chart(ctx, {
-                type: 'doughnut',
-                data: {
-                    labels: ['Cho duyet', 'Da duyet', 'Tu choi'],
-                    datasets: [{
-                        data: dataStatus,
-                        backgroundColor: ['#f59e0b', '#10b981', '#ef4444'],
-                        hoverOffset: 4,
-                        borderWidth: 2,
-                        borderColor: '#ffffff'
-                    }]
+if (total === 0) {
+    ctx.canvas.style.display = 'none';
+    ctx.canvas.insertAdjacentHTML('afterend',
+        '<p style="text-align:center;color:#94a3b8;padding:80px 0;">Chưa có dữ liệu thống kê</p>');
+} else {
+    new Chart(ctx, {
+        type: 'doughnut',
+        data: {
+            labels: ['Chờ duyệt', 'Đã duyệt', 'Từ chối'],
+            datasets: [{
+                data: dataStatus,
+                backgroundColor: ['#f59e0b', '#10b981', '#ef4444'],
+                hoverOffset: 6,
+                borderWidth: 2,
+                borderColor: '#ffffff'
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            cutout: '65%',
+            plugins: {
+                legend: {
+                    position: 'bottom',
+                    labels: { padding: 20, usePointStyle: true, font: { size: 13 } }
                 },
-                options: {
-                    responsive: true,
-                    maintainAspectRatio: false,
-                    cutout: '70%',
-                    plugins: {
-                        legend: { 
-                            position: 'bottom',
-                            labels: { padding: 20, usePointStyle: true }
+                tooltip: {
+                    callbacks: {
+                        label: function(context) {
+                            const val = context.parsed;
+                            const pct = ((val / total) * 100).toFixed(1);
+                            return ` ${context.label}: ${val} hồ sơ (${pct}%)`;
                         }
                     }
                 }
-            });
+            }
         }
+    });
+}
     </script>
 </body>
 </html>

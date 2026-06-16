@@ -13,6 +13,19 @@ $user = $_SESSION['user'];
 $success = "";
 $error = "";
 
+mysqli_query($conn, "CREATE TABLE IF NOT EXISTS dot_nganh_tohop (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    dot_id INT NOT NULL,
+    nganh_id INT NOT NULL,
+    tohop_id INT NOT NULL,
+    diem_san DECIMAL(4,2) DEFAULT 0,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE KEY uniq_dot_nganh_tohop (dot_id, nganh_id, tohop_id),
+    FOREIGN KEY (dot_id) REFERENCES dot_tuyensinh(id) ON DELETE CASCADE,
+    FOREIGN KEY (nganh_id) REFERENCES nganhhoc(id) ON DELETE CASCADE,
+    FOREIGN KEY (tohop_id) REFERENCES tohop_xettuyen(id) ON DELETE CASCADE
+) ENGINE=InnoDB CHARSET=utf8mb4");
+
 // Xử lý nộp hồ sơ
 if (isset($_POST['submit'])) {
     $hoten = mysqli_real_escape_string($conn, trim($_POST['hoten']));
@@ -32,52 +45,85 @@ if (isset($_POST['submit'])) {
     $diem3 = (float)$_POST['diem3'];
     $tong_diem = $diem1 + $diem2 + $diem3;
 
-    // Upload file
-    $file_path = "";
-    if (isset($_FILES['hocba']) && $_FILES['hocba']['error'] == 0) {
-        $target_dir = __DIR__ . "/../../uploads/hocba/";
-        if (!file_exists($target_dir)) mkdir($target_dir, 0777, true);
-        
-        $file_ext = pathinfo($_FILES['hocba']['name'], PATHINFO_EXTENSION);
-        $file_name = "hocba_" . $user['id'] . "_" . time() . "." . $file_ext;
-        $target_file = $target_dir . $file_name;
-        
-        if (move_uploaded_file($_FILES['hocba']['tmp_name'], $target_file)) {
-            $file_path = $file_name;
+    $config_sql = "SELECT c.diem_san, th.ma_tohop, th.ten_tohop
+                   FROM dot_nganh_tohop c
+                   JOIN tohop_xettuyen th ON c.tohop_id = th.id
+                   WHERE c.dot_id = $dot_id
+                     AND c.nganh_id = $nganh_id
+                     AND c.tohop_id = $tohop_id
+                   LIMIT 1";
+    $config_res = mysqli_query($conn, $config_sql);
+    $config = $config_res ? mysqli_fetch_assoc($config_res) : null;
+
+    if (!$config) {
+        $error = "Tổ hợp bạn chọn chưa được mở cho ngành này trong đợt tuyển sinh đã chọn.";
+    } elseif ($tong_diem < (float)$config['diem_san']) {
+        $error = "Tổng điểm của bạn là " . number_format($tong_diem, 1) . ", chưa đạt điểm sàn " . number_format((float)$config['diem_san'], 2) . " của tổ hợp " . $config['ma_tohop'] . ".";
+    }
+
+    if (!$error) {
+        // Upload file
+        $file_path = "";
+        if (isset($_FILES['hocba']) && $_FILES['hocba']['error'] == 0) {
+            $target_dir = __DIR__ . "/../../uploads/hocba/";
+            if (!file_exists($target_dir)) mkdir($target_dir, 0777, true);
+            
+            $file_ext = pathinfo($_FILES['hocba']['name'], PATHINFO_EXTENSION);
+            $file_name = "hocba_" . $user['id'] . "_" . time() . "." . $file_ext;
+            $target_file = $target_dir . $file_name;
+            
+            if (move_uploaded_file($_FILES['hocba']['tmp_name'], $target_file)) {
+                $file_path = $file_name;
+            }
         }
-    }
 
-    // 1. Cập nhật/Chèn thông tin thí sinh
-    $check_ts = mysqli_query($conn, "SELECT id FROM thisinh WHERE user_id = " . $user['id']);
-    if (mysqli_num_rows($check_ts) > 0) {
-        $ts_data = mysqli_fetch_assoc($check_ts);
-        $ts_id = $ts_data['id'];
-        $sql_ts = "UPDATE thisinh SET hoten='$hoten', ngaysinh='$ngaysinh', gioitinh='$gioitinh', diachi='$diachi', sdt='$sdt', email='$email', cccd='$cccd' WHERE id=$ts_id";
-    } else {
-        $sql_ts = "INSERT INTO thisinh (user_id, hoten, ngaysinh, gioitinh, diachi, sdt, email, cccd) VALUES ('".$user['id']."', '$hoten', '$ngaysinh', '$gioitinh', '$diachi', '$sdt', '$email', '$cccd')";
-    }
-
-    if (mysqli_query($conn, $sql_ts)) {
-        if (!isset($ts_id)) $ts_id = mysqli_insert_id($conn);
-        
-        // 2. Chèn hồ sơ xét tuyển
-        $sql_hoso = "INSERT INTO hosoxettuyen (thisinh_id, nganh_id, dot_id, tohop_id, diem_mon1, diem_mon2, diem_mon3, diem_tong, file_hocba, trangthai) 
-                     VALUES ('$ts_id', '$nganh_id', '$dot_id', '$tohop_id', '$diem1', '$diem2', '$diem3', '$tong_diem', '$file_path', 'Cho duyet')";
-        
-        if (mysqli_query($conn, $sql_hoso)) {
-            $success = "Chúc mừng! Hồ sơ xét tuyển của bạn đã được gửi thành công.";
+        // 1. Cập nhật/Chèn thông tin thí sinh
+        $check_ts = mysqli_query($conn, "SELECT id FROM thisinh WHERE user_id = " . $user['id']);
+        if (mysqli_num_rows($check_ts) > 0) {
+            $ts_data = mysqli_fetch_assoc($check_ts);
+            $ts_id = $ts_data['id'];
+            $sql_ts = "UPDATE thisinh SET hoten='$hoten', ngaysinh='$ngaysinh', gioitinh='$gioitinh', diachi='$diachi', sdt='$sdt', email='$email', cccd='$cccd' WHERE id=$ts_id";
         } else {
-            $error = "Lỗi nộp hồ sơ: " . mysqli_error($conn);
+            $sql_ts = "INSERT INTO thisinh (user_id, hoten, ngaysinh, gioitinh, diachi, sdt, email, cccd) VALUES ('".$user['id']."', '$hoten', '$ngaysinh', '$gioitinh', '$diachi', '$sdt', '$email', '$cccd')";
         }
-    } else {
-        $error = "Lỗi lưu thông tin thí sinh: " . mysqli_error($conn);
+
+        if (mysqli_query($conn, $sql_ts)) {
+            if (!isset($ts_id)) $ts_id = mysqli_insert_id($conn);
+            
+            // 2. Chèn hồ sơ xét tuyển
+            $sql_hoso = "INSERT INTO hosoxettuyen (thisinh_id, nganh_id, dot_id, tohop_id, diem_mon1, diem_mon2, diem_mon3, diem_tong, file_hocba, trangthai) 
+                         VALUES ('$ts_id', '$nganh_id', '$dot_id', '$tohop_id', '$diem1', '$diem2', '$diem3', '$tong_diem', '$file_path', 'Cho duyet')";
+            
+            if (mysqli_query($conn, $sql_hoso)) {
+                $success = "Chúc mừng! Hồ sơ xét tuyển của bạn đã được gửi thành công.";
+            } else {
+                $error = "Lỗi nộp hồ sơ: " . mysqli_error($conn);
+            }
+        } else {
+            $error = "Lỗi lưu thông tin thí sinh: " . mysqli_error($conn);
+        }
     }
 }
 
-// Lấy danh sách ngành, đợt, tổ hợp
-$nganh_res = mysqli_query($conn, "SELECT * FROM nganhhoc");
+// Lấy danh sách ngành, đợt và cấu hình tổ hợp theo từng ngành
+$nganh_res = mysqli_query($conn, "SELECT * FROM nganhhoc ORDER BY ma_nganh");
 $dot_res = mysqli_query($conn, "SELECT * FROM dot_tuyensinh WHERE trang_thai = 'Dang mo'");
-$tohop_res = mysqli_query($conn, "SELECT * FROM tohop_xettuyen");
+$config_res = mysqli_query($conn, "SELECT c.dot_id, c.nganh_id, c.tohop_id, c.diem_san,
+                                          th.ma_tohop, th.ten_tohop
+                                   FROM dot_nganh_tohop c
+                                   JOIN dot_tuyensinh d ON c.dot_id = d.id
+                                   JOIN tohop_xettuyen th ON c.tohop_id = th.id
+                                   WHERE d.trang_thai = 'Dang mo'
+                                   ORDER BY th.ma_tohop");
+$tohop_config = [];
+while ($cfg = mysqli_fetch_assoc($config_res)) {
+    $tohop_config[$cfg['dot_id']][$cfg['nganh_id']][] = [
+        'id' => (int)$cfg['tohop_id'],
+        'ma' => $cfg['ma_tohop'],
+        'ten' => $cfg['ten_tohop'],
+        'diem_san' => (float)$cfg['diem_san']
+    ];
+}
 ?>
 <!DOCTYPE html>
 <html lang="vi">
@@ -165,27 +211,26 @@ $tohop_res = mysqli_query($conn, "SELECT * FROM tohop_xettuyen");
                     <h3 class="step-title"><span>2</span> Nguyện vọng & Tổ hợp môn</h3>
                     <div class="form-group">
                         <label>Đợt tuyển sinh</label>
-                        <select name="dot" required>
+                        <select name="dot" id="dot-select" required>
                             <?php while($dot = mysqli_fetch_assoc($dot_res)) echo "<option value='{$dot['id']}'>{$dot['ten_dot']}</option>"; ?>
                         </select>
                     </div>
                     <div class="cards-grid" style="padding: 0; grid-template-columns: repeat(2, 1fr); gap: 20px;">
                         <div class="form-group">
                             <label>Ngành đăng ký xét tuyển</label>
-                            <select name="nganh" required>
+                            <select name="nganh" id="nganh-select" required>
                                 <option value="">-- Chọn ngành --</option>
                                 <?php while($ng = mysqli_fetch_assoc($nganh_res)) echo "<option value='{$ng['id']}'>{$ng['ma_nganh']} - {$ng['tennganh']}</option>"; ?>
                             </select>
                         </div>
                         <div class="form-group">
                             <label>Tổ hợp môn xét tuyển</label>
-                            <select name="tohop" required>
-                                <option value="">-- Chọn tổ hợp --</option>
-                                <?php while($th = mysqli_fetch_assoc($tohop_res)) echo "<option value='{$th['id']}'>{$th['ma_tohop']} ({$th['ten_tohop']})</option>"; ?>
+                            <select name="tohop" id="tohop-select" required>
+                                <option value="">-- Chọn đợt và ngành trước --</option>
                             </select>
                         </div>
                     </div>
-                    <p style="font-size: 0.9rem; color: var(--text-muted); margin-bottom: 15px;">Nhập điểm trung bình các môn thuộc tổ hợp đã chọn:</p>
+                    <p id="diem-san-note" style="font-size: 0.9rem; color: var(--text-muted); margin-bottom: 15px;">Nhập điểm trung bình các môn thuộc tổ hợp đã chọn.</p>
                     <div class="cards-grid" style="padding: 0; grid-template-columns: repeat(3, 1fr); gap: 20px;">
                         <div class="form-group">
                             <label>Điểm Môn 1</label>
@@ -223,5 +268,48 @@ $tohop_res = mysqli_query($conn, "SELECT * FROM tohop_xettuyen");
     <footer>
         <p>© 2026 Hệ Thống Tuyển Sinh. All rights reserved.</p>
     </footer>
+    <script>
+        const tohopConfig = <?php echo json_encode($tohop_config, JSON_UNESCAPED_UNICODE | JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_HEX_AMP); ?>;
+        const dotSelect = document.getElementById('dot-select');
+        const nganhSelect = document.getElementById('nganh-select');
+        const tohopSelect = document.getElementById('tohop-select');
+        const diemSanNote = document.getElementById('diem-san-note');
+
+        function refreshTohopOptions() {
+            const dotId = dotSelect.value;
+            const nganhId = nganhSelect.value;
+            const options = (tohopConfig[dotId] && tohopConfig[dotId][nganhId]) ? tohopConfig[dotId][nganhId] : [];
+
+            tohopSelect.innerHTML = '';
+            const placeholder = document.createElement('option');
+            placeholder.value = '';
+            placeholder.textContent = options.length ? '-- Chọn tổ hợp --' : '-- Ngành này chưa có tổ hợp trong đợt đã chọn --';
+            tohopSelect.appendChild(placeholder);
+
+            options.forEach(item => {
+                const option = document.createElement('option');
+                option.value = item.id;
+                option.dataset.diemSan = item.diem_san;
+                option.textContent = `${item.ma} (${item.ten}) - điểm sàn ${Number(item.diem_san).toFixed(2)}`;
+                tohopSelect.appendChild(option);
+            });
+
+            updateDiemSanNote();
+        }
+
+        function updateDiemSanNote() {
+            const selected = tohopSelect.options[tohopSelect.selectedIndex];
+            if (selected && selected.dataset.diemSan) {
+                diemSanNote.textContent = `Điểm sàn tổ hợp đã chọn: ${Number(selected.dataset.diemSan).toFixed(2)}. Nhập điểm trung bình các môn thuộc tổ hợp này.`;
+            } else {
+                diemSanNote.textContent = 'Nhập điểm trung bình các môn thuộc tổ hợp đã chọn.';
+            }
+        }
+
+        dotSelect.addEventListener('change', refreshTohopOptions);
+        nganhSelect.addEventListener('change', refreshTohopOptions);
+        tohopSelect.addEventListener('change', updateDiemSanNote);
+        refreshTohopOptions();
+    </script>
 </body>
 </html>

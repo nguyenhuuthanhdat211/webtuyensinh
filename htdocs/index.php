@@ -75,11 +75,12 @@ include 'config/database.php';
                     </thead>
                     <tbody>
                         <?php
-                        $sql = "SELECT n.*, GROUP_CONCAT(t.ma_tohop SEPARATOR ', ') as tohop 
+                        $sql = "SELECT n.*, GROUP_CONCAT(DISTINCT CONCAT(t.ma_tohop, ' (san ', FORMAT(c.diem_san, 2), ')') ORDER BY t.ma_tohop SEPARATOR ', ') as tohop 
                                 FROM nganhhoc n 
-                                LEFT JOIN nganh_tohop nt ON n.id = nt.nganh_id 
-                                LEFT JOIN tohop_xettuyen t ON nt.tohop_id = t.id 
-                                GROUP BY n.id";
+                                LEFT JOIN dot_nganh_tohop c ON n.id = c.nganh_id
+                                  AND c.dot_id IN (SELECT id FROM dot_tuyensinh WHERE trang_thai = 'Dang mo')
+                                LEFT JOIN tohop_xettuyen t ON c.tohop_id = t.id 
+                                GROUP BY n.id, n.tennganh, n.ma_nganh, n.chitieu, n.mo_ta, n.created_at";
                         $result = mysqli_query($conn, $sql);
                         while($row = mysqli_fetch_assoc($result)) {
                             echo "<tr>";

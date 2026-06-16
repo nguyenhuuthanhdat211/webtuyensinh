@@ -15,11 +15,13 @@ $ts_res = mysqli_query($conn, "SELECT * FROM thisinh WHERE user_id = $uid");
 $ts = mysqli_fetch_assoc($ts_res);
 
 // Lấy danh sách hồ sơ đã nộp
-$hoso_sql = "SELECT h.*, n.tennganh, d.ten_dot, t.ma_tohop 
+$hoso_sql = "SELECT h.*, n.tennganh, d.ten_dot, t.ma_tohop, cfg.diem_san 
              FROM hosoxettuyen h
              JOIN nganhhoc n ON h.nganh_id = n.id
              JOIN dot_tuyensinh d ON h.dot_id = d.id
              JOIN tohop_xettuyen t ON h.tohop_id = t.id
+             LEFT JOIN dot_nganh_tohop cfg
+               ON cfg.dot_id = h.dot_id AND cfg.nganh_id = h.nganh_id AND cfg.tohop_id = h.tohop_id
              WHERE h.thisinh_id = (SELECT id FROM thisinh WHERE user_id = $uid)
              ORDER BY h.created_at DESC";
 $hoso_res = mysqli_query($conn, $hoso_sql);
@@ -80,6 +82,7 @@ $hoso_res = mysqli_query($conn, $hoso_sql);
                             <th>Ngành đăng ký</th>
                             <th>Tổ hợp</th>
                             <th>Tổng điểm</th>
+                            <th>Điểm sàn</th>
                             <th>Trạng thái</th>
                         </tr>
                     </thead>
@@ -91,6 +94,7 @@ $hoso_res = mysqli_query($conn, $hoso_sql);
                                     <td><strong><?php echo $h['tennganh']; ?></strong></td>
                                     <td><?php echo $h['ma_tohop']; ?></td>
                                     <td><span style="font-weight: 700; color: var(--primary);"><?php echo number_format($h['diem_tong'], 1); ?></span></td>
+                                    <td><?php echo $h['diem_san'] !== null ? number_format((float)$h['diem_san'], 2) : 'N/A'; ?></td>
                                     <td>
                                         <?php 
                                             $st = $h['trangthai'];
@@ -103,7 +107,7 @@ $hoso_res = mysqli_query($conn, $hoso_sql);
                                 </tr>
                             <?php endwhile; ?>
                         <?php else: ?>
-                            <tr><td colspan="5" style="text-align: center;">Bạn chưa nộp hồ sơ nào.</td></tr>
+                            <tr><td colspan="6" style="text-align: center;">Bạn chưa nộp hồ sơ nào.</td></tr>
                         <?php endif; ?>
                     </tbody>
                 </table>

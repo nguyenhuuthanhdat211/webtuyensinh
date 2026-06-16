@@ -12,7 +12,7 @@ mysqli_report(MYSQLI_REPORT_OFF);
 include '../../config/database.php';
 
 // Kiểm tra bảng cần thiết có tồn tại không
-$tables_required = ['hosoxettuyen', 'thisinh', 'nganhhoc', 'dot_tuyensinh', 'tohop_xettuyen'];
+$tables_required = ['hosoxettuyen', 'thisinh', 'nganhhoc', 'dot_tuyensinh', 'tohop_xettuyen', 'dot_nganh_tohop'];
 $missing = [];
 foreach ($tables_required as $tbl) {
     $chk = mysqli_query($conn, "SHOW TABLES LIKE '$tbl'");
@@ -40,12 +40,15 @@ $sql = "SELECT h.*, t.hoten,
                COALESCE(t.cccd, '') AS cccd,
                n.tennganh, 
                COALESCE(d.ten_dot, 'Chưa xác định') AS ten_dot, 
-               COALESCE(th.ma_tohop, 'N/A') AS ma_tohop
+               COALESCE(th.ma_tohop, 'N/A') AS ma_tohop,
+               cfg.diem_san
         FROM hosoxettuyen h
         LEFT JOIN thisinh t ON h.thisinh_id = t.id
         LEFT JOIN nganhhoc n ON h.nganh_id = n.id
         LEFT JOIN dot_tuyensinh d ON h.dot_id = d.id
         LEFT JOIN tohop_xettuyen th ON h.tohop_id = th.id
+        LEFT JOIN dot_nganh_tohop cfg
+          ON cfg.dot_id = h.dot_id AND cfg.nganh_id = h.nganh_id AND cfg.tohop_id = h.tohop_id
         ORDER BY h.created_at DESC";
 $res = mysqli_query($conn, $sql);
 if (!$res) {
@@ -97,6 +100,7 @@ if (!$res) {
                             <th>Ngành học</th>
                             <th>Tổ hợp</th>
                             <th>Điểm</th>
+                            <th>Điểm sàn</th>
                             <th>Trạng thái</th>
                             <th>Tài liệu</th>
                             <th>Thao tác</th>
@@ -117,14 +121,23 @@ if (!$res) {
                                 <td><?php echo htmlspecialchars($h['ma_tohop'] ?? 'N/A'); ?></td>
                                 <td><strong style="color: var(--primary);"><?php echo number_format($h['diem_tong'], 1); ?></strong></td>
                                 <td>
-                                    <?php 
-                                        $st = $h['trangthai'];
-                                        $color = "#64748b";
-                                        if ($st == 'Da duyet' || $st == 'Trung tuyen') $color = "#10b981";
-                                        if ($st == 'Tu choi' || $st == 'Khong trung tuyen') $color = "#ef4444";
-                                        if ($st == 'Cho duyet') $color = "#f59e0b";
-                                        echo "<span style='background: $color; color: white; padding: 4px 10px; border-radius: 50px; font-size: 0.8rem;'>$st</span>";
-                                    ?>
+                                    <?php if ($h['diem_san'] !== null): ?>
+                                        <strong><?php echo number_format((float)$h['diem_san'], 2); ?></strong>
+                                    <?php else: ?>
+                                        <span style="color: var(--text-muted);">Chưa cấu hình</span>
+                                    <?php endif; ?>
+                                </td>
+                                <td>
+                                   <?php 
+    $st = $h['trangthai'];
+    $color = "#64748b";
+
+    if ($st == 'Da duyet' || $st == 'Trung tuyen') $color = "#10b981";
+    if ($st == 'Tu choi' || $st == 'Khong trung tuyen') $color = "#ef4444";
+    if ($st == 'Cho duyet') $color = "#f59e0b";
+
+    echo "<span style='display:inline-block; white-space:nowrap; background:$color; color:white; padding:4px 10px; border-radius:50px; font-size:0.8rem;'>$st</span>";
+?>
                                 </td>
                                 <td>
                                     <?php if ($h['file_hocba']): ?>
@@ -145,7 +158,7 @@ if (!$res) {
                         <?php endwhile; ?>
                         <?php if (!$has_rows): ?>
                             <tr>
-                                <td colspan="7" style="text-align:center; padding: 50px 20px; color: var(--text-muted);">
+                                <td colspan="8" style="text-align:center; padding: 50px 20px; color: var(--text-muted);">
                                     <div style="font-size:3rem;">📭</div>
                                     <div style="margin-top:10px; font-size:1.1rem;">Chưa có hồ sơ xét tuyển nào</div>
                                     <div style="font-size:0.85rem; margin-top:5px;">Hồ sơ sẽ xuất hiện khi thí sinh nộp đăng ký</div>

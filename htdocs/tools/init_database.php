@@ -93,7 +93,21 @@ create_table($conn, 'nganh_tohop', "CREATE TABLE nganh_tohop (
     FOREIGN KEY (tohop_id) REFERENCES tohop_xettuyen(id) ON DELETE CASCADE
 ) ENGINE=InnoDB CHARSET=utf8mb4");
 
-// 6. Thí sinh
+// 6. Đợt - Ngành - Tổ hợp, kèm điểm sàn
+create_table($conn, 'dot_nganh_tohop', "CREATE TABLE dot_nganh_tohop (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    dot_id INT NOT NULL,
+    nganh_id INT NOT NULL,
+    tohop_id INT NOT NULL,
+    diem_san DECIMAL(4,2) DEFAULT 0,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE KEY uniq_dot_nganh_tohop (dot_id, nganh_id, tohop_id),
+    FOREIGN KEY (dot_id) REFERENCES dot_tuyensinh(id) ON DELETE CASCADE,
+    FOREIGN KEY (nganh_id) REFERENCES nganhhoc(id) ON DELETE CASCADE,
+    FOREIGN KEY (tohop_id) REFERENCES tohop_xettuyen(id) ON DELETE CASCADE
+) ENGINE=InnoDB CHARSET=utf8mb4");
+
+// 7. Thí sinh
 create_table($conn, 'thisinh', "CREATE TABLE thisinh (
     id INT AUTO_INCREMENT PRIMARY KEY,
     user_id INT,
@@ -110,7 +124,7 @@ create_table($conn, 'thisinh', "CREATE TABLE thisinh (
     FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE SET NULL
 ) ENGINE=InnoDB CHARSET=utf8mb4");
 
-// 7. Hồ sơ xét tuyển
+// 8. Hồ sơ xét tuyển
 create_table($conn, 'hosoxettuyen', "CREATE TABLE hosoxettuyen (
     id INT AUTO_INCREMENT PRIMARY KEY,
     thisinh_id INT NOT NULL,
@@ -130,6 +144,15 @@ create_table($conn, 'hosoxettuyen', "CREATE TABLE hosoxettuyen (
     FOREIGN KEY (dot_id) REFERENCES dot_tuyensinh(id) ON DELETE SET NULL,
     FOREIGN KEY (tohop_id) REFERENCES tohop_xettuyen(id) ON DELETE SET NULL
 ) ENGINE=InnoDB CHARSET=utf8mb4");
+
+$check_config_table = mysqli_query($conn, "SHOW TABLES LIKE 'dot_nganh_tohop'");
+if ($check_config_table && mysqli_num_rows($check_config_table) > 0) {
+    $col = mysqli_query($conn, "SHOW COLUMNS FROM dot_nganh_tohop LIKE 'diem_san'");
+    if (!$col || mysqli_num_rows($col) == 0) {
+        mysqli_query($conn, "ALTER TABLE dot_nganh_tohop ADD COLUMN diem_san DECIMAL(4,2) DEFAULT 0 AFTER tohop_id");
+        echo "<div class='ok'>✅ Đã bổ sung cột <code>diem_san</code> cho bảng <code>dot_nganh_tohop</code></div>";
+    }
+}
 
 echo "<h3>📦 Chèn dữ liệu mẫu</h3>";
 
@@ -191,8 +214,23 @@ if (mysqli_num_rows($check_ng) == 0) {
     echo "<div class='skip'>⏭️ Đã có ngành học</div>";
 }
 
+// Cấu hình xét tuyển theo đợt - ngành - tổ hợp
+$check_cfg = mysqli_query($conn, "SELECT id FROM dot_nganh_tohop LIMIT 1");
+if ($check_cfg && mysqli_num_rows($check_cfg) == 0) {
+    mysqli_query($conn, "INSERT INTO dot_nganh_tohop (dot_id, nganh_id, tohop_id, diem_san) VALUES
+        (1,1,1,18.00), (1,1,2,18.50), (1,1,3,19.00),
+        (1,2,3,17.00), (1,2,4,17.50),
+        (1,3,3,16.50),
+        (1,4,1,16.00), (1,4,2,16.50)");
+    mysqli_query($conn, "INSERT IGNORE INTO nganh_tohop (nganh_id, tohop_id)
+        SELECT DISTINCT nganh_id, tohop_id FROM dot_nganh_tohop");
+    echo "<div class='ok'>✅ Đã thêm cấu hình đợt - ngành - tổ hợp và điểm sàn mẫu</div>";
+} else {
+    echo "<div class='skip'>⏭️ Đã có cấu hình xét tuyển theo đợt/ngành/tổ hợp</div>";
+}
+
 echo "<h3>✅ Kiểm tra tổng kết</h3>";
-$tables_needed = ['users','dot_tuyensinh','tohop_xettuyen','nganhhoc','nganh_tohop','thisinh','hosoxettuyen'];
+$tables_needed = ['users','dot_tuyensinh','tohop_xettuyen','nganhhoc','nganh_tohop','dot_nganh_tohop','thisinh','hosoxettuyen'];
 $all_ok = true;
 foreach ($tables_needed as $t) {
     $r = mysqli_query($conn, "SHOW TABLES LIKE '$t'");

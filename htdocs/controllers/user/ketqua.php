@@ -11,12 +11,14 @@ $user = $_SESSION['user'];
 $uid = $user['id'];
 
 // Lấy kết quả xét tuyển
-$sql = "SELECT h.*, n.tennganh, d.ten_dot, th.ma_tohop 
+$sql = "SELECT h.*, n.tennganh, d.ten_dot, th.ma_tohop, cfg.diem_san 
         FROM hosoxettuyen h
         JOIN thisinh t ON h.thisinh_id = t.id
         JOIN nganhhoc n ON h.nganh_id = n.id
         JOIN dot_tuyensinh d ON h.dot_id = d.id
         JOIN tohop_xettuyen th ON h.tohop_id = th.id
+        LEFT JOIN dot_nganh_tohop cfg
+          ON cfg.dot_id = h.dot_id AND cfg.nganh_id = h.nganh_id AND cfg.tohop_id = h.tohop_id
         WHERE t.user_id = $uid
         ORDER BY h.created_at DESC";
 $result = mysqli_query($conn, $sql);
@@ -56,6 +58,7 @@ $result = mysqli_query($conn, $sql);
                             <th>Ngành học</th>
                             <th>Tổ hợp</th>
                             <th>Tổng điểm</th>
+                            <th>Điểm sàn</th>
                             <th>Trạng thái</th>
                         </tr>
                     </thead>
@@ -67,6 +70,7 @@ $result = mysqli_query($conn, $sql);
                                     <td><strong><?php echo $row['tennganh']; ?></strong></td>
                                     <td><?php echo $row['ma_tohop']; ?></td>
                                     <td><strong style="color: var(--primary); font-size: 1.1rem;"><?php echo number_format($row['diem_tong'], 1); ?></strong></td>
+                                    <td><?php echo $row['diem_san'] !== null ? number_format((float)$row['diem_san'], 2) : 'N/A'; ?></td>
                                     <td>
                                         <?php 
                                             $st = $row['trangthai'];
@@ -82,7 +86,7 @@ $result = mysqli_query($conn, $sql);
                                 </tr>
                                 <?php if ($st == 'Trung tuyen'): ?>
                                     <tr>
-                                        <td colspan="5" style="background: #ecfdf5; border: none; padding: 20px;">
+                                        <td colspan="6" style="background: #ecfdf5; border: none; padding: 20px;">
                                             <div style="color: #065f46; font-weight: 600;">
                                                 🎉 Chúc mừng! Bạn đã trúng tuyển vào ngành <strong><?php echo $row['tennganh']; ?></strong>. 
                                                 Vui lòng chuẩn bị hồ sơ nhập học và có mặt tại trường trước ngày 15/09/2026.
@@ -93,7 +97,7 @@ $result = mysqli_query($conn, $sql);
                                 <?php endif; ?>
                             <?php endwhile; ?>
                         <?php else: ?>
-                            <tr><td colspan="5" style="text-align: center;">Bạn chưa nộp hồ sơ xét tuyển nào.</td></tr>
+                            <tr><td colspan="6" style="text-align: center;">Bạn chưa nộp hồ sơ xét tuyển nào.</td></tr>
                         <?php endif; ?>
                     </tbody>
                 </table>

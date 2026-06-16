@@ -23,7 +23,7 @@ CREATE TABLE IF NOT EXISTS dot_tuyensinh (
     ten_dot VARCHAR(255) NOT NULL,
     ngay_bat_dau DATE,
     ngay_ket_thuc DATE,
-    trang_thai ENUM('Đang mở', 'Đã đóng') DEFAULT 'Đang mở',
+    trang_thai ENUM('Dang mo', 'Da dong') DEFAULT 'Dang mo',
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
@@ -45,7 +45,21 @@ CREATE TABLE IF NOT EXISTS nganhhoc (
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
--- 5. Bảng liên kết Ngành - Tổ hợp
+-- 5. Bảng liên kết Đợt tuyển sinh - Ngành - Tổ hợp, kèm điểm sàn
+CREATE TABLE IF NOT EXISTS dot_nganh_tohop (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    dot_id INT NOT NULL,
+    nganh_id INT NOT NULL,
+    tohop_id INT NOT NULL,
+    diem_san DECIMAL(4,2) DEFAULT 0,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE KEY uniq_dot_nganh_tohop (dot_id, nganh_id, tohop_id),
+    FOREIGN KEY (dot_id) REFERENCES dot_tuyensinh(id) ON DELETE CASCADE,
+    FOREIGN KEY (nganh_id) REFERENCES nganhhoc(id) ON DELETE CASCADE,
+    FOREIGN KEY (tohop_id) REFERENCES tohop_xettuyen(id) ON DELETE CASCADE
+);
+
+-- Bảng liên kết Ngành - Tổ hợp cũ, giữ lại để tương thích dữ liệu cũ
 CREATE TABLE IF NOT EXISTS nganh_tohop (
     nganh_id INT,
     tohop_id INT,
@@ -82,7 +96,7 @@ CREATE TABLE IF NOT EXISTS hosoxettuyen (
     diem_mon2 FLOAT DEFAULT 0,
     diem_mon3 FLOAT DEFAULT 0,
     diem_tong FLOAT DEFAULT 0,
-    trangthai ENUM('Chờ duyệt','Đã duyệt','Từ chối','Trúng tuyển','Không trúng tuyển') DEFAULT 'Chờ duyệt',
+    trangthai ENUM('Cho duyet','Da duyet','Tu choi','Trung tuyen','Khong trung tuyen') DEFAULT 'Cho duyet',
     file_hocba VARCHAR(255),
     ghi_chu TEXT,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
@@ -104,7 +118,7 @@ ON DUPLICATE KEY UPDATE role='admin';
 
 -- Đợt tuyển sinh
 INSERT INTO dot_tuyensinh (ten_dot, ngay_bat_dau, ngay_ket_thuc, trang_thai) VALUES
-('Tuyển sinh Đại học Đợt 1 - 2024', '2024-05-01', '2024-08-30', 'Đang mở');
+('Tuyển sinh Đại học Đợt 1 - 2026', '2026-05-01', '2026-08-30', 'Dang mo');
 
 -- Tổ hợp xét tuyển
 INSERT INTO tohop_xettuyen (ma_tohop, ten_tohop, mo_ta) VALUES
@@ -121,7 +135,14 @@ INSERT INTO nganhhoc (tennganh, ma_nganh, chitieu, mo_ta) VALUES
 ('Điện - Điện tử', 'DDT', 100, 'Đào tạo kỹ sư điện, điện tử viễn thông'),
 ('Kiến trúc', 'KT2', 80, 'Đào tạo kiến trúc sư thiết kế công trình');
 
--- Liên kết Ngành - Tổ hợp (Ví dụ CNTT xét A00, A01, D01)
+-- Liên kết Đợt - Ngành - Tổ hợp và điểm sàn mẫu
+INSERT INTO dot_nganh_tohop (dot_id, nganh_id, tohop_id, diem_san) VALUES
+(1, 1, 1, 18.00), (1, 1, 2, 18.50), (1, 1, 3, 19.00),
+(1, 2, 3, 17.00), (1, 2, 4, 17.50),
+(1, 3, 3, 16.50),
+(1, 4, 1, 16.00), (1, 4, 2, 16.50);
+
+-- Liên kết Ngành - Tổ hợp cũ để tương thích các màn cũ
 INSERT INTO nganh_tohop (nganh_id, tohop_id) VALUES
 (1, 1), (1, 2), (1, 3),
 (2, 3), (2, 4),

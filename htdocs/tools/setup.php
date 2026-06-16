@@ -57,6 +57,18 @@ $sqls = [
         FOREIGN KEY (nganh_id) REFERENCES nganhhoc(id) ON DELETE CASCADE,
         FOREIGN KEY (tohop_id) REFERENCES tohop_xettuyen(id) ON DELETE CASCADE
     )",
+    "CREATE TABLE dot_nganh_tohop (
+        id INT AUTO_INCREMENT PRIMARY KEY,
+        dot_id INT NOT NULL,
+        nganh_id INT NOT NULL,
+        tohop_id INT NOT NULL,
+        diem_san DECIMAL(4,2) DEFAULT 0,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        UNIQUE KEY uniq_dot_nganh_tohop (dot_id, nganh_id, tohop_id),
+        FOREIGN KEY (dot_id) REFERENCES dot_tuyensinh(id) ON DELETE CASCADE,
+        FOREIGN KEY (nganh_id) REFERENCES nganhhoc(id) ON DELETE CASCADE,
+        FOREIGN KEY (tohop_id) REFERENCES tohop_xettuyen(id) ON DELETE CASCADE
+    )",
     "CREATE TABLE thisinh (
         id INT AUTO_INCREMENT PRIMARY KEY,
         user_id INT,
@@ -115,6 +127,7 @@ mysqli_query($conn, "INSERT INTO nganhhoc (tennganh, ma_nganh, chitieu, mo_ta) V
 ('Ngôn ngữ Anh', 'NNA', 100, 'Đào tạo biên phiên dịch...')");
 
 // Liên kết ngành - tổ hợp
+mysqli_query($conn, "INSERT INTO dot_nganh_tohop (dot_id, nganh_id, tohop_id, diem_san) VALUES (1,1,1,18.00), (1,1,2,18.50), (1,2,3,17.00), (1,3,3,16.50)");
 mysqli_query($conn, "INSERT INTO nganh_tohop VALUES (1,1), (1,2), (2,3), (3,3)");
 
 echo "<div style='background: #ecfdf5; border: 1px solid #10b981; padding: 25px; border-radius: 15px; margin-top: 30px;'>";

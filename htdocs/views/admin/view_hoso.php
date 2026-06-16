@@ -14,11 +14,14 @@ if (isset($_POST['update_status'])) {
     header("Location: view_hoso.php?id=$id&msg=updated"); exit();
 }
 
-$sql = "SELECT h.*, t.hoten, t.cccd, t.sdt, t.email, t.diachi, n.tennganh, d.ten_dot 
+$sql = "SELECT h.*, t.hoten, t.cccd, t.sdt, t.email, t.diachi, n.tennganh, d.ten_dot, th.ma_tohop, th.ten_tohop, cfg.diem_san 
         FROM hosoxettuyen h 
         LEFT JOIN thisinh t ON h.thisinh_id = t.id 
         LEFT JOIN nganhhoc n ON h.nganh_id = n.id 
         LEFT JOIN dot_tuyensinh d ON h.dot_id = d.id 
+        LEFT JOIN tohop_xettuyen th ON h.tohop_id = th.id
+        LEFT JOIN dot_nganh_tohop cfg
+          ON cfg.dot_id = h.dot_id AND cfg.nganh_id = h.nganh_id AND cfg.tohop_id = h.tohop_id
         WHERE h.id = $id";
 $h = mysqli_fetch_assoc(mysqli_query($conn, $sql));
 ?>
@@ -73,6 +76,8 @@ $h = mysqli_fetch_assoc(mysqli_query($conn, $sql));
         <div class="grid">
             <div class="info-item"><div class="info-label">Ngành học</div><div class="info-val"><?php echo $h['tennganh']; ?></div></div>
             <div class="info-item"><div class="info-label">Đợt tuyển sinh</div><div class="info-val"><?php echo $h['ten_dot']; ?></div></div>
+            <div class="info-item"><div class="info-label">Tổ hợp</div><div class="info-val"><?php echo $h['ma_tohop']; ?> - <?php echo $h['ten_tohop']; ?></div></div>
+            <div class="info-item"><div class="info-label">Điểm sàn</div><div class="info-val"><?php echo $h['diem_san'] !== null ? number_format((float)$h['diem_san'], 2) . ' điểm' : 'Chưa cấu hình'; ?></div></div>
             <div class="info-item"><div class="info-label">Điểm xét tuyển</div><div class="info-val" style="color:#2563eb; font-size:1.4rem;"><?php echo $h['diem_tong']; ?> điểm</div></div>
         </div>
 

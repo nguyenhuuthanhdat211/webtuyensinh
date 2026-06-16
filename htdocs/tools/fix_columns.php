@@ -75,6 +75,19 @@ foreach ($hoso_required as $col_name => $alter_sql) {
     }
 }
 
+mysqli_query($conn, "CREATE TABLE IF NOT EXISTS dot_nganh_tohop (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    dot_id INT NOT NULL,
+    nganh_id INT NOT NULL,
+    tohop_id INT NOT NULL,
+    diem_san DECIMAL(4,2) DEFAULT 0,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE KEY uniq_dot_nganh_tohop (dot_id, nganh_id, tohop_id),
+    FOREIGN KEY (dot_id) REFERENCES dot_tuyensinh(id) ON DELETE CASCADE,
+    FOREIGN KEY (nganh_id) REFERENCES nganhhoc(id) ON DELETE CASCADE,
+    FOREIGN KEY (tohop_id) REFERENCES tohop_xettuyen(id) ON DELETE CASCADE
+) ENGINE=InnoDB CHARSET=utf8mb4");
+
 // Test query cuối
 echo "<h3>Test query hoso.php:</h3>";
 $test = mysqli_query($conn, "SELECT h.*, t.hoten, COALESCE(t.cccd,'') as cccd, n.tennganh,
